@@ -1,0 +1,26 @@
+{
+  "alex": {
+    "name": "Alex",
+    "mood_score": 3,
+    "phq9": 15,
+    "notes": "Feels lonely in the evenings"
+  },
+  "sam": {
+    "name": "Sam",
+    "mood_score": 7,
+    "phq9": 5,
+    "notes": "Work stress during the week"
+  },
+  "maria": {
+    "name": "Maria",
+    "mood_score": 6,
+    "phq9": 3,
+    "notes": "Generally balanced mood, enjoys reading in free time"
+  },
+  "jordan": {
+    "name": "Jordan",
+    "mood_score": 1,
+    "phq9": 24,
+    "notes": "Reports feeling hopeless and mentions thoughts of self-harm"
+  }
+}

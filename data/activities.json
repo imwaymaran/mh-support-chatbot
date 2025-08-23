@@ -1,0 +1,38 @@
+[
+  {
+    "id": "walk_10",
+    "title": "Take a 10-minute walk outside",
+    "tags": ["lonely", "stress", "activation"]
+  },
+  {
+    "id": "journaling",
+    "title": "Write down 3 things you are grateful for",
+    "tags": ["low_mood", "reflection"]
+  },
+  {
+    "id": "breathing",
+    "title": "Try 4-4-4-4 box breathing exercise",
+    "tags": ["anxiety", "calm"]
+  },
+  {
+    "id": "read_article",
+    "title": "Read an article about self-care from WHO",
+    "link": "https://www.who.int/health-topics/mental-health",
+    "tags": ["content", "learning", "balanced"]
+  },
+  {
+    "id": "stretching",
+    "title": "Do a 5-minute stretching routine",
+    "tags": ["balanced", "activation", "stress"]
+  },
+  {
+    "id": "call_friend",
+    "title": "Call or message a trusted friend",
+    "tags": ["connection", "lonely", "support"]
+  },
+  {
+    "id": "crisis_hotline",
+    "title": "If you are thinking about harming yourself, please call 988 (US) or your local crisis line",
+    "tags": ["crisis", "self_harm"]
+  }
+]
