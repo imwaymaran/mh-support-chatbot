@@ -1,9 +1,8 @@
-import os, json
+import os, json, random
 from dotenv import load_dotenv
 import google.generativeai as genai
-import random
 
-# --- Setup ---
+# ========== Setup ==========
 load_dotenv()
 API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
@@ -17,21 +16,41 @@ def load_json(path):
 PROFILES   = load_json("data/profiles.json")
 ACTIVITIES = load_json("data/activities.json")
     
+# Pick a random profile every run
 profile_key = random.choice(list(PROFILES.keys()))
 profile = PROFILES[profile_key]
 
-# --- Suggestions ---
+# ========== Crisis ==========
+CRISIS_MES = """I’m really sorry you’re going through this. You’re not alone.
+**If you’re in the US and in immediate danger, call 911.**
+You can also call or text **988** (Suicide & Crisis Lifeline) to talk to someone now.
+If you’d like, we can try a brief grounding exercise or identify a trusted person to reach out to.
+"""
+
+CRISIS_KW = {
+    "suicide", "self-harm", "self harm", "kill myself", "end my life",
+    "can't go on", "cant go on", "hurt myself", "harm myself"
+}
+
+def is_crisis(profile, text):
+    """Return True if profile or message suggests a crisis"""
+    t = (text or "").lower()
+    kw_hit = any(k in t for k in CRISIS_KW)
+    severe_scores = profile['phq9'] >= 20 or profile['mood_score'] <= 2
+    return kw_hit or severe_scores
+
+# ========== Suggestions ==========
 def pick_activities(profile):
     ms = profile.get("mood_score", 5)
     if ms <= 4:
         # low mood users: calming, reflective
-        return [a for a in ACTIVITIES if "low_mood" in a.get("tags", []) or "anxiety" in a.get("tags", [])][:2]
+        return [a for a in ACTIVITIES if "low_mood" in a['tags'] or "anxiety" in a['tags']][:2]
     elif ms >= 8:
         # very positive: activation / growth
-        return [a for a in ACTIVITIES if "balanced" in a.get("tags", []) or "learning" in a.get("tags", [])][:2]
+        return [a for a in ACTIVITIES if "balanced" in a['tags'] or "learning" in a['tags']][:2]
     else:
         # mid-range: balanced / activation
-        return [a for a in ACTIVITIES if "balanced" in a.get("tags", []) or "activation" in a.get("tags", [])][:2]
+        return [a for a in ACTIVITIES if "balanced" in a['tags'] or "activation" in a['tags']][:2]
 
 def build_system_prompt(profile, suggestions):
     sug_text = "\n".join(
@@ -67,11 +86,18 @@ def main():
             print("Goodbye!")
             break
         
+        if is_crisis(profile, user_input):
+            print("Bot:", CRISIS_MES, "\n")
+            continue
+        
         prompt = system_prompt + f'\nUser: {user_input}\nAssistant:'
         try:
             resp = model.generate_content(prompt)
-            reply = resp.text.strip()
-        except Exception as e:
+            reply = (resp.text or "").strip() if resp else ""
+            if not reply:
+                reply = "Thanks for sharing. Would you like to try one of the steps above?"
+
+        except Exception:
             reply = 'Sorry, I could not process that.'
         
         print(f'Bot: {reply}\n')
