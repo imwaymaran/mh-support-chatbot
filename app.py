@@ -39,18 +39,40 @@ def is_crisis(profile, text):
     severe_scores = profile['phq9'] >= 20 or profile['mood_score'] <= 2
     return kw_hit or severe_scores
 
+# ========== Reminders / Appointments ==========
+REMINDERS = []
+APPOINTMENTS = []
+
+def parse_intents(text):
+    """Naive keyword matching for demo"""
+    t = text.lower()
+    return {
+        'reminder': any(k in t for k in ['remind me', 'set reminder', 'reminder']),
+        'appointment': any(k in t for k in ['appointment', 'book', 'schedule']),
+    }
+
+def simulate_actions(intents, text):
+    outputs = []
+    if intents['reminder']:
+        REMINDERS.append(text)
+        outputs.append('Reminder set (demo).')
+    if intents['appointment']:
+        APPOINTMENTS.append(text)
+        outputs.append('Appointment scheduled (demo).')
+    return outputs
+
 # ========== Suggestions ==========
 def pick_activities(profile):
     ms = profile.get("mood_score", 5)
     if ms <= 4:
         # low mood users: calming, reflective
-        return [a for a in ACTIVITIES if "low_mood" in a['tags'] or "anxiety" in a['tags']][:2]
+        return [activity for activity in ACTIVITIES if "low_mood" in activity['tags'] or "anxiety" in activity['tags']][:2]
     elif ms >= 8:
         # very positive: activation / growth
-        return [a for a in ACTIVITIES if "balanced" in a['tags'] or "learning" in a['tags']][:2]
+        return [activity for activity in ACTIVITIES if "balanced" in activity['tags'] or "learning" in activity['tags']][:2]
     else:
         # mid-range: balanced / activation
-        return [a for a in ACTIVITIES if "balanced" in a['tags'] or "activation" in a['tags']][:2]
+        return [activity for activity in ACTIVITIES if "balanced" in activity['tags'] or "activation" in activity['tags']][:2]
 
 def build_system_prompt(profile, suggestions):
     sug_text = "\n".join(
@@ -101,6 +123,11 @@ def main():
             reply = 'Sorry, I could not process that.'
         
         print(f'Bot: {reply}\n')
+        
+        intents = parse_intents(user_input)
+        actions = simulate_actions(intents, user_input)
+        for act in actions:
+            print("Bot:", act)
         
 if __name__ == "__main__":
     main()
