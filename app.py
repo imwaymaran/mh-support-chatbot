@@ -109,9 +109,11 @@ def build_system_prompt(profile, suggestions):
         f"- {s['title']}" + (f" ({s['link']})" if s.get("link") else "")
         for s in suggestions
     )
-    return f"""You are a supportive wellness assistant. Be empathetic, brief, and non-judgmental.
-Do not diagnose. Offer one small, doable next step when appropriate.
-Do not claim you set reminders or appointments yourself; those are handled by tools.
+    return f"""You are a supportive wellness assistant.
+- Be empathetic and natural. Vary your openings (don’t always greet).
+- First acknowledge what the user said; suggest at most one activity only when helpful or asked.
+- Keep replies short (2–3 sentences). End with a gentle check-in question.
+- Do not claim you set reminders/appointments; those are handled by tools.
 
 Personalize responses using this profile:
 Name: {profile['name']}
@@ -119,10 +121,8 @@ Mood score: {profile['mood_score']}
 PHQ-9: {profile['phq9']}
 Notes: {profile['notes']}
 
-Prefer one of these options if relevant:
+Preferred options if relevant:
 {sug_text}
-
-End with a gentle check-in question.
 """
 
 def main():    
@@ -138,6 +138,8 @@ def main():
         model_name='gemini-1.5-flash',
         system_instruction=system_prompt
     )
+    
+    chat = model.start_chat(history=[])
     
     while True:
         if SEVERE_PROFILE and not CRISIS_BANNER_SHOWN:
@@ -157,7 +159,13 @@ def main():
         if text_lower in ('quit', 'exit'):
             print("Goodbye!")
             break
-
+        
+        if text_lower in {"show reminders", "show tasks"}:
+            print("Bot: Reminders ->", REMINDERS or "none")
+            print("Bot: Appointments ->", APPOINTMENTS or "none")
+            print()
+            continue
+        
         if text_lower == "continue":
             pass
         elif is_crisis_message(text):
@@ -172,13 +180,12 @@ def main():
             continue
 
         try:
-            resp = model.generate_content(raw_text)
+            resp = chat.send_message(raw_text)
             reply = (resp.text or "").strip() if resp else ""
             if not reply:
                 reply = "Thanks for sharing. Would you like to try one of the steps above?"
-
         except Exception:
-            reply = 'Sorry, I could not process that.'
+            reply = "Sorry, I could not process that."
         
         print(f'Bot: {reply}\n')
         
