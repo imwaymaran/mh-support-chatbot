@@ -1,33 +1,57 @@
 # Mental Health Chatbot (Demo)
 
-This is a simple Streamlit + Gemini chatbot prototype designed as a 24/7 wellness companion.  
-It simulates assisting a member support team with basic tasks such as:
-- Setting up an appointment (simulated)
-- Helping with content/resources
-- Suggesting activities when lonely
-- Setting reminders (simulated)
+A **Gemini**-powered 24/7 wellness companion for support teams.  
+
+## Key Capabilities
+- **Appointments (simulated):** “book/schedule an appointment” -> confirms and stores locally  
+- **Reminders (simulated):** “remind me …” -> confirms and stores locally  
+- **Content help:** “show me an article/resource” -> serves links from `data/activities.json`  
+- **Lonely-time activities:** **personalized** suggestions from mock `profiles.json` (mood, PHQ-9, notes)  
+- **Public + private data:**  
+  - Public: activities/resources in `activities.json`  
+  - Private: mock `profiles.json` for personalization  
+  - Crisis detection: **local model** (`joblib`) trained on the [Suicide Watch Reddit dataset](https://www.kaggle.com/datasets/nikhileswarkomati/suicide-watch)  
+- **Crisis safety:** hybrid keyword + ML gate; shows 988/911 guidance and pauses chat for high-risk cases  
+
+---
+
+## Demo
+
+### Normal Interaction  
+Sample run with a balanced profile (Sam, Mood=7, PHQ-9=5).  
+The chatbot demonstrates empathy, gives activity suggestions, shares content, sets reminders and appointments, and recalls stored tasks.
+
+![Normal Demo Screenshot](screenshots/normal_demo.png)
+
+### Crisis Interaction  
+Sample run with a severe profile (e.g., Mood=1, PHQ-9=24).  
+The chatbot detects risk through the profile and user input, triggers the crisis safety layer, and provides 988/911 guidance while pausing normal conversation.
+
+![Crisis Demo Screenshot](screenshots/demo-crisis.png)
+
+Related project: [Suicide Ideation Detection (ML Classifier)](https://github.com/imwaymaran/suicide-ideation-detection-ml)  
+
+---
 
 ## Features
-- Powered by Google's Gemini API
-- Personalized responses based on simulated user profiles
-- Lightweight demo with Streamlit UI
+- **Gemini API (1.5-flash)**  
+- **Chat history** maintained via `chat = model.start_chat(history=[])`  
+- **Personalization** from `profiles.json` (mood score, PHQ-9, notes)  
+- **Activity recommendations** from `activities.json` (tag-based filtering: low mood, balanced, growth, etc.)  
+- **Intent parsing** (naive keyword matcher) for reminders, appointments, and content requests  
+- **Crisis detection**  
+  - Keyword matching (`suicide`, `self-harm`, …)  
+  - **ML model** (joblib pipeline) trained on Reddit Suicide Watch dataset  
+- **Safety layer**: pauses and shows 988/911 info for severe profiles or detected crisis inputs  
+- **Lightweight demo**: pure Python CLI
 
-## Setup
-1. Clone the repo
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Copy the environment file and add your Gemini API key:
-   ```bash
-   cp .env.example .env
-   ```
-   Then open .env and replace with your actual key:
-   ```text
-   GEMINI_API_KEY=your_api_key_here
-   ```
+---
 
-4. Run the app:
-   ```python
-   streamlit run app.py
-   ```
+## Quickstart
+```bash
+git clone https://github.com/imwaymaran/mh-support-chatbot.git && cd <repo>
+pip install -r requirements.txt
+cp .env.example .env    # add your key
+# .env -> GEMINI_API_KEY=your_api_key_here
+python app.py
+```
