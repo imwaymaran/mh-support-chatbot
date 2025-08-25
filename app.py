@@ -1,4 +1,5 @@
 import os, json, random
+from joblib import load as joblib_load
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -30,15 +31,38 @@ If you’d like, we can try a brief grounding exercise or identify a trusted per
 
 CRISIS_KW = {
     "suicide", "self-harm", "self harm", "kill myself", "end my life",
-    "can't go on", "cant go on", "hurt myself", "harm myself"
+    "ending it", "end it all", "take my life", "take my own life",
+    "can't go on", "cant go on", "hurt myself", "harm myself",
+    "life isn’t worth living", "life isn't worth living", "no reason to live"
 }
 
-def is_crisis(profile, text):
-    """Return True if profile or message suggests a crisis"""
-    t = (text or "").lower()
-    kw_hit = any(k in t for k in CRISIS_KW)
-    severe_scores = profile['phq9'] >= 20 or profile['mood_score'] <= 2
-    return kw_hit or severe_scores
+
+CRISIS_MODEL_PATH = os.getenv("CRISIS_MODEL_PATH", "models/model.joblib")
+try:
+    CRISIS_MODEL = joblib_load(CRISIS_MODEL_PATH)
+except Exception:
+    CRISIS_MODEL = None
+    
+CRISIS_MODEL_THRESHOLD = 0.6
+    
+def crisis_ml_score(text):
+    """Return probability from ML model, or None if not available."""
+    if CRISIS_MODEL is None:
+        return None
+    try:
+        return float(CRISIS_MODEL.predict_proba([text])[0, 1])
+    except Exception:
+        return None
+
+def is_crisis_message(text):
+    """Hybrid rule+ML gate for crisis detection."""
+    t_lower = (text or "").lower()
+    # 1) Keyword override
+    if any(keyword in t_lower for keyword in CRISIS_KW):
+        return True
+    # 2) ML probability
+    score = crisis_ml_score(text)
+    return (score is not None) and (score >= CRISIS_MODEL_THRESHOLD)
 
 # ========== Reminders / Appointments ==========
 REMINDERS = []
@@ -46,12 +70,10 @@ APPOINTMENTS = []
 
 def parse_intents(user_input):
     """Naive keyword matching for demo"""
-    text = user_input.lower()
     return {
-        'reminder': any(keyword in text for keyword in ['remind me', 'set reminder', 'reminder']),
-        'appointment': any(keyword in text for keyword in ['appointment', 'book', 'schedule']),
-        'content': any(keyword in text for keyword in ['article', 'content', 'resource', 'read', 'learn']),
-
+        'reminder': any(keyword in user_input for keyword in ['remind me', 'set reminder', 'reminder']),
+        'appointment': any(keyword in user_input for keyword in ['appointment', 'book', 'schedule']),
+        'content': any(keyword in user_input for keyword in ['article', 'content', 'resource', 'read', 'learn']),
     }
 
 def simulate_actions(intents, text):
@@ -89,6 +111,7 @@ def build_system_prompt(profile, suggestions):
     )
     return f"""You are a supportive wellness assistant. Be empathetic, brief, and non-judgmental.
 Do not diagnose. Offer one small, doable next step when appropriate.
+Do not claim you set reminders or appointments yourself; those are handled by tools.
 
 Personalize responses using this profile:
 Name: {profile['name']}
@@ -102,27 +125,54 @@ Prefer one of these options if relevant:
 End with a gentle check-in question.
 """
 
-def main():
-    model = genai.GenerativeModel('gemini-1.5-flash')
+def main():    
+    SEVERE_PROFILE = profile['phq9'] >= 20 or profile['mood_score'] <= 2
+    CRISIS_BANNER_SHOWN = False
     
     suggestions = pick_activities(profile)
     system_prompt = build_system_prompt(profile, suggestions)
 
     print(f"Chatbot started for {profile['name']}.\nType 'quit' to exit.\n")
     
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash',
+        system_instruction=system_prompt
+    )
+    
     while True:
-        user_input = input('You: ')
-        if user_input.lower().strip() in ('quit', 'exit'):
+        if SEVERE_PROFILE and not CRISIS_BANNER_SHOWN:
+            print(
+                f"Bot: I noticed your profile suggests you may be going through a really hard time "
+                f"(Mood={profile['mood_score']}, PHQ-9={profile['phq9']})."
+            )
+            print("Bot:", CRISIS_MES, "\n")
+            print("Bot: Let me know if you’d prefer to pause for now, or type 'continue' if you’d like to keep chatting with me.")
+            CRISIS_BANNER_SHOWN = True
+            continue
+
+        raw_text = input('You: ')
+        text = raw_text.strip()
+        text_lower = text.lower()
+
+        if text_lower in ('quit', 'exit'):
             print("Goodbye!")
             break
-        
-        if is_crisis(profile, user_input):
+
+        if text_lower == "continue":
+            pass
+        elif is_crisis_message(text):
             print("Bot:", CRISIS_MES, "\n")
             continue
-        
-        prompt = system_prompt + f'\nUser: {user_input}\nAssistant:'
+
+        intents = parse_intents(text_lower)
+        if any(intents.values()):
+            for act in simulate_actions(intents, text):
+                print("Bot:", act)
+            print()
+            continue
+
         try:
-            resp = model.generate_content(prompt)
+            resp = model.generate_content(raw_text)
             reply = (resp.text or "").strip() if resp else ""
             if not reply:
                 reply = "Thanks for sharing. Would you like to try one of the steps above?"
@@ -131,11 +181,6 @@ def main():
             reply = 'Sorry, I could not process that.'
         
         print(f'Bot: {reply}\n')
-        
-        intents = parse_intents(user_input)
-        actions = simulate_actions(intents, user_input)
-        for act in actions:
-            print("Bot:", act)
         
 if __name__ == "__main__":
     main()
