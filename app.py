@@ -19,6 +19,7 @@ ACTIVITIES = load_json("data/activities.json")
 # Pick a random profile every run
 profile_key = random.choice(list(PROFILES.keys()))
 profile = PROFILES[profile_key]
+print(f"Selected profile: {profile['name']} (Mood={profile['mood_score']}, PHQ-9={profile['phq9']})")
 
 # ========== Crisis ==========
 CRISIS_MES = """I’m really sorry you’re going through this. You’re not alone.
@@ -43,12 +44,14 @@ def is_crisis(profile, text):
 REMINDERS = []
 APPOINTMENTS = []
 
-def parse_intents(text):
+def parse_intents(user_input):
     """Naive keyword matching for demo"""
-    t = text.lower()
+    text = user_input.lower()
     return {
-        'reminder': any(k in t for k in ['remind me', 'set reminder', 'reminder']),
-        'appointment': any(k in t for k in ['appointment', 'book', 'schedule']),
+        'reminder': any(keyword in text for keyword in ['remind me', 'set reminder', 'reminder']),
+        'appointment': any(keyword in text for keyword in ['appointment', 'book', 'schedule']),
+        'content': any(keyword in text for keyword in ['article', 'content', 'resource', 'read', 'learn']),
+
     }
 
 def simulate_actions(intents, text):
@@ -59,8 +62,13 @@ def simulate_actions(intents, text):
     if intents['appointment']:
         APPOINTMENTS.append(text)
         outputs.append('Appointment scheduled (demo).')
-    return outputs
+    if intents['content']:
+        link_items = [a for a in ACTIVITIES if a.get('link')]
+        item = link_items[0]
+        outputs.append(f"Content: {item['title']} — {item['link']}")
 
+    return outputs    
+    
 # ========== Suggestions ==========
 def pick_activities(profile):
     ms = profile.get("mood_score", 5)
